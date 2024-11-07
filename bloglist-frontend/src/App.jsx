@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import Blog from './components/Blog'
 import blogService from './services/blogs'
-import axios from 'axios'
 import { login } from './services/login'
+import { jwtDecode } from "jwt-decode";
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
@@ -28,10 +28,14 @@ const App = () => {
   }, [user])
 
   useEffect(() => {
-    const loggedUserJSON = window.localStorage.getItem('loggedUser')
-    if (loggedUserJSON) {
-      const user = JSON.parse(loggedUserJSON)
-      setUser(user)
+    try {
+      const {username, id} = jwtDecode(window.localStorage.getItem('jwt'))
+      console.log(`username -> ${username}   id -> ${id}`);
+      if (username && id) {
+        setUser({username, id})
+      }
+    } catch (error) {
+      
     }
   }, [])
 
@@ -39,8 +43,8 @@ const App = () => {
     event.preventDefault()
     try {
       console.log(`username ${username}   password ${password}`);
-      const user = await login({username, password})
-      window.localStorage.setItem('loggedUser', JSON.stringify(user))
+      const {token} = await login({username, password})
+      window.localStorage.setItem('jwt', token)
       setUser(user)
       setUsername('')
       setPassword('')
@@ -51,7 +55,7 @@ const App = () => {
   }
 
   const handleLogout = async (event) => {
-    window.localStorage.setItem('loggedUser', null)
+    window.localStorage.setItem('jwt', null)
     setUser(null)
   }
 
