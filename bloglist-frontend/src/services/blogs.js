@@ -13,7 +13,9 @@ const getAll = async () => {
 const insert = async (newBlog) => {
   console.log(`insertando -> ${newBlog}`);
   try {
-    const response = axios.post(baseUrl, {}, {
+    const response = axios.post(baseUrl, {
+
+    }, {
       headers: {
         Authorization: `Bearer ${JSON.parse(window.localStorage.getItem('loggedUser')).token}`
       }
