@@ -56,6 +56,7 @@ blogsRouter.delete('/:id', async (request, response) => {
 	if (blog.user.toString() === request.user.id) {
 		await Blog.findByIdAndRemove(request.params.id)
 		response.status(204).end()
+		console.log(`Blog con id ${request.params.id} borrado con exito`);
 	} else {
 		return response.status(401).json({ error: 'Unauthorized to delete the blog' })
 	}
@@ -70,6 +71,7 @@ blogsRouter.put('/:id', async (request, response) => {
 		author: body.author,
 		url: body.url,
 		likes: body.likes ? body.likes : 0,
+		user: body.user
 	}
 
 	await Blog.findByIdAndUpdate(request.params.id, blog, { new: true })

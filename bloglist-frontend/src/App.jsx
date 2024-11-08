@@ -1,27 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Blog from './components/Blog'
 import blogService from './services/blogs'
 import { login } from './services/login'
 import { jwtDecode } from "jwt-decode";
+import './styles.css'
+import BlogForm from './components/BlogForm';
+import Togglable from './components/Togglabe';
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [errorMessage, setErrorMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState("")
   const [user, setUser] = useState(null)
-  const [newTitle, setNewTitle] = useState("")
-  const [newAuthor, setNewAuthor] = useState("")
-  const [newUrl, setNewUrl] = useState("")
-
+  const blogFormRef = useRef()
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return
       try {
         setBlogs(await blogService.getAll())
       } catch (error) {
-        console.log(`Error obteniendo blogs`);
-        setErrorMessage('Error obteniendo los blogs')
+        handleNewErrorMessage('Error obteniendo los blogs')
       }
     }
     fetchData()
@@ -39,46 +39,68 @@ const App = () => {
     }
   }, [])
 
-  const handleLogin = async (event) => {
-    event.preventDefault()
-    try {
-      console.log(`username ${username}   password ${password}`);
-      const {token} = await login({username, password})
-      window.localStorage.setItem('jwt', token)
-      setUser(user)
-      setUsername('')
-      setPassword('')
-    
-    } catch (error) {
-      setErrorMessage('Wrong credentials')
-    }
+const handleLogin = async (event) => {
+  event.preventDefault();
+  try {
+    const { token } = await login({ username, password });
+    window.localStorage.setItem('jwt', token);
+    const { username: decodedUsername, id } = jwtDecode(token);
+    setUser({ username: decodedUsername, id });
+    handleNewSuccessMessage(`${username} logged correctly`)
+    setUsername('');
+    setPassword('');
+  } catch (error) {
+    handleNewErrorMessage('Wrong credentials');
   }
+};
 
   const handleLogout = async (event) => {
-    window.localStorage.setItem('jwt', null)
+    window.localStorage.removeItem('jwt');
     setUser(null)
   }
 
-  const handleNewBlog = async (event) => {
-    event.preventDefault()
+  const handleNewErrorMessage = (message) => {
+    setErrorMessage(message)
+    
+    setTimeout(() => {
+      setErrorMessage('')}, 3000)
+    }
+
+  const handleNewSuccessMessage = (message) => {
+    setSuccessMessage(message)
+    
+    setTimeout(() => {
+      setSuccessMessage('')}, 3000)
+    }
+
+
+  const handleNewBlog = async (newBlog) => {
+    console.log(newBlog)
     try {
       console.log(`Creando nuevo blog`);
-      const response = await blogService.insert({
-        newTitle,
-        newAuthor,
-        newUrl,
-      })
-      setNewTitle('')
-      setNewAuthor('')
-      setNewUrl('')
+      const response = await blogService.insert(newBlog)
+      setBlogs(blogs.concat(response.data))
+      handleNewSuccessMessage(`a new blog ${response.data.title} by ${response.data.author} added`)
+      blogFormRef.current.toggleVisibility()
     } catch (error) {
-      setErrorMessage(error.message)
+      handleNewErrorMessage(error.message)
+    }
+  }
+
+  const handleDeleteBlog = async (blog) => {
+    try {
+      const response = await blogService.remove(blog.id)
+      handleNewSuccessMessage(`blog ${blog.title} by ${blog.author} removed correctly`)
+    } catch (error) {
+      handleNewErrorMessage(error.message)
     }
   }
 
   const loginForm = () => (
     <div>
     <h2>log in to application</h2>
+    {errorMessage && (<div className='error-card'>{errorMessage}</div>)}
+    {successMessage && (<div className='success-card'>{successMessage}</div>)}
     <form onSubmit={handleLogin}>
       <div>
         username
@@ -108,39 +130,23 @@ const App = () => {
   const blogList = () => (
     <div>
       <h2>blogs</h2>
-      <div>
-        <h2>create new</h2>
-        <form onSubmit={handleNewBlog}>
-          <div>
-            <input 
-            type='text'
-            value={newTitle}
-            onChange={({target}) => setNewTitle(target.value)}
-            name='New Title'
-            />
-          </div>
-          <div>
-            <input 
-            type='text'
-            value={newAuthor}
-            onChange={({target}) => setNewAuthor(target.value)}
-            name='New Author'
-            />
-          </div>
-          <div>
-            <input 
-            type='text'
-            value={newUrl}
-            onChange={({target}) => setNewUrl(target.value)}
-            name='New Url'
-            />
-          </div>
-          <button type='submit'>create</button>
-        </form>
-          
-      </div>
+      {errorMessage && (<div className='error-card'>
+        {errorMessage}
+      </div>)}
+      {successMessage && (<div className='success-card'>
+        {successMessage}
+      </div>)}
       <p>{user.username} logged in<button onClick={handleLogout}>logout</button></p>
-      {blogs.map(blog => <Blog key={blog.id} blog={blog}/>)}
+      {blogs.sort((a,b) => b.likes - a.likes).map(blog => (
+      <div>
+        <Blog key={blog.id} blog={blog}/>
+      </div>
+      
+      ))}
+      <Togglable buttonLabel='new Blog' ref={blogFormRef}>
+        <h2>create new</h2>
+        <BlogForm createBlog={handleNewBlog}/>
+      </Togglable>
     </div>
   )
 
